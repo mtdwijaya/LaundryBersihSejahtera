@@ -18,18 +18,23 @@ import type {
   PaymentStatus,
 } from "@/lib/types";
 
-const STORAGE_KEY = "lbs-laundry-prototype-v1";
+const STORAGE_KEY = "lbs-laundry-prototype-v2";
 
 type LaundryState = {
   customers: Customer[];
   orders: Order[];
 };
 
+type StatusUpdateResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "unpaid_pickup" };
+
 type LaundryContextValue = LaundryState & {
   ready: boolean;
   addOrder: (input: CreateOrderInput) => Order;
-  updateStatus: (orderId: string, status: OrderStatus) => void;
-  advanceStatus: (orderId: string) => void;
+  updateStatus: (orderId: string, status: OrderStatus) => StatusUpdateResult;
+  advanceStatus: (orderId: string) => StatusUpdateResult;
+  canSetStatus: (orderId: string, status: OrderStatus) => StatusUpdateResult;
   updatePayment: (orderId: string, paidAmount: number) => void;
   addCustomer: (input: Omit<Customer, "id">) => Customer;
   resetDemo: () => void;
@@ -149,28 +154,47 @@ export function LaundryProvider({ children }: { children: React.ReactNode }) {
     return nextOrder;
   }, []);
 
-  const updateStatus = useCallback((orderId: string, status: OrderStatus) => {
-    setState((prev) => ({
-      ...prev,
-      orders: prev.orders.map((order) =>
-        order.id === orderId
-          ? { ...order, status, updatedAt: new Date().toISOString() }
-          : order,
-      ),
-    }));
-  }, []);
+  const canSetStatus = useCallback(
+    (orderId: string, status: OrderStatus): StatusUpdateResult => {
+      const order = state.orders.find((item) => item.id === orderId);
+      if (!order) return { ok: false, reason: "not_found" };
+      if (status === "diambil" && order.paymentStatus !== "lunas") {
+        return { ok: false, reason: "unpaid_pickup" };
+      }
+      return { ok: true };
+    },
+    [state.orders],
+  );
 
-  const advanceStatus = useCallback((orderId: string) => {
-    setState((prev) => ({
-      ...prev,
-      orders: prev.orders.map((order) => {
-        if (order.id !== orderId) return order;
-        const idx = STATUS_FLOW.indexOf(order.status);
-        const next = STATUS_FLOW[Math.min(idx + 1, STATUS_FLOW.length - 1)];
-        return { ...order, status: next, updatedAt: new Date().toISOString() };
-      }),
-    }));
-  }, []);
+  const updateStatus = useCallback(
+    (orderId: string, status: OrderStatus): StatusUpdateResult => {
+      const check = canSetStatus(orderId, status);
+      if (!check.ok) return check;
+
+      setState((prev) => ({
+        ...prev,
+        orders: prev.orders.map((order) =>
+          order.id === orderId
+            ? { ...order, status, updatedAt: new Date().toISOString() }
+            : order,
+        ),
+      }));
+      return { ok: true };
+    },
+    [canSetStatus],
+  );
+
+  const advanceStatus = useCallback(
+    (orderId: string): StatusUpdateResult => {
+      const order = state.orders.find((item) => item.id === orderId);
+      if (!order) return { ok: false, reason: "not_found" };
+
+      const idx = STATUS_FLOW.indexOf(order.status);
+      const next = STATUS_FLOW[Math.min(idx + 1, STATUS_FLOW.length - 1)];
+      return updateStatus(orderId, next);
+    },
+    [state.orders, updateStatus],
+  );
 
   const updatePayment = useCallback((orderId: string, paidAmount: number) => {
     setState((prev) => ({
@@ -201,6 +225,7 @@ export function LaundryProvider({ children }: { children: React.ReactNode }) {
       addOrder,
       updateStatus,
       advanceStatus,
+      canSetStatus,
       updatePayment,
       addCustomer,
       resetDemo,
@@ -211,6 +236,7 @@ export function LaundryProvider({ children }: { children: React.ReactNode }) {
       addOrder,
       updateStatus,
       advanceStatus,
+      canSetStatus,
       updatePayment,
       addCustomer,
       resetDemo,

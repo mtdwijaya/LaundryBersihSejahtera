@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { HeaderActions, MobileFab } from "@/components/header-actions";
 import { DesktopNav, MobileNav, NavFallback } from "@/components/nav-links";
-import { OpenTerimaButton } from "@/components/open-terima-button";
-import { ResetDemoButton } from "@/components/reset-demo-button";
 import { BRAND } from "@/lib/constants";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell min-h-full flex flex-col">
       <header className="sticky top-0 z-40 border-b-2 border-ink bg-white/95 backdrop-blur supports-[padding:max(0px)]:pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:gap-4">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
+        <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 sm:px-6 md:gap-4">
+          <Link href="/" className="flex min-w-0 items-center gap-3 justify-self-start">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2 border-ink bg-brand text-sm font-black text-white shadow-hard">
               {BRAND.shortName}
             </span>
@@ -28,10 +27,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DesktopNav />
           </Suspense>
 
-          <div className="flex items-center gap-2">
-            <OpenTerimaButton className="hidden sm:inline-flex" />
-            <ResetDemoButton />
-          </div>
+          <Suspense
+            fallback={
+              <div className="min-w-[9.5rem] justify-self-end sm:min-w-[13.5rem]" />
+            }
+          >
+            <div className="justify-self-end">
+              <HeaderActions />
+            </div>
+          </Suspense>
         </div>
 
         <Suspense fallback={<NavFallback mobile />}>
@@ -43,9 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <div className="fab-bar sm:hidden">
-        <OpenTerimaButton className="w-full">+ Terima cucian</OpenTerimaButton>
-      </div>
+      <Suspense fallback={null}>
+        <MobileFab />
+      </Suspense>
 
       <footer className="border-t-2 border-ink bg-white pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-sm text-ink/60 sm:flex-row sm:items-center sm:justify-between sm:px-6">
